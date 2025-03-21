@@ -5,12 +5,14 @@ import wave
 import uvicorn
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
 # Import functions from gguf_orpheus
 from gguf_orpheus import (
     generate_speech_from_api,
+    generate_speech_streaming,
     AVAILABLE_VOICES,
     DEFAULT_VOICE,
     TEMPERATURE,
@@ -187,6 +189,9 @@ class CapabilitiesResponse(BaseModel):
     Compatible with OpenAI's /v1/audio/speech endpoint.
     
     You can specify different voices and adjust generation parameters.
+    
+    Note: This endpoint waits for the entire audio to be generated before returning it.
+    For streaming audio as it's generated, use the /v1/audio/speech_stream endpoint.
     """,
     responses={
         200: {
@@ -254,6 +259,67 @@ async def create_speech(request: SpeechRequest):
         if os.path.exists(temp_file):
             os.remove(temp_file)
         raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
+
+@app.post(
+    "/v1/audio/speech_stream",
+    tags=["Speech Generation"],
+    summary="Stream speech from text",
+    description="""
+    Generate speech from text using Orpheus TTS and stream the audio as it's being generated.
+    
+    This endpoint starts streaming the audio immediately, without waiting for the entire
+    generation to complete. This allows for faster playback and a more interactive experience.
+    
+    The audio is streamed as a WAV file that can be played directly in the browser.
+    """,
+    responses={
+        200: {
+            "content": {"audio/wav": {}},
+            "description": "Streamed WAV audio with the generated speech"
+        },
+        400: {
+            "description": "Bad request, invalid parameters"
+        },
+        500: {
+            "description": "Server error during speech generation"
+        }
+    }
+)
+async def stream_speech(request: SpeechRequest):
+    """
+    Generate speech from text and stream the audio as it's being generated.
+    
+    - **input**: The text to convert to speech
+    - **voice**: The voice to use (default: tara)
+    - **temperature**: Controls randomness in generation (0.0 to 1.0)
+    - **top_p**: Controls diversity of generation (0.0 to 1.0)
+    - **repetition_penalty**: Penalizes repetition (>=1.1 required for stable generation)
+    """
+    if not request.input:
+        raise HTTPException(status_code=400, detail="Text input is required")
+    
+    if request.voice not in AVAILABLE_VOICES:
+        raise HTTPException(status_code=400, detail=f"Voice '{request.voice}' not available. Use /v1/voices to see available voices.")
+    
+    if request.response_format != "wav":
+        raise HTTPException(status_code=400, detail="Only 'wav' response format is supported")
+    
+    # Generate a filename for Content-Disposition header
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = f"{request.voice}_{timestamp}.wav"
+    
+    # Create a streaming response
+    return StreamingResponse(
+        generate_speech_streaming(
+            prompt=request.input,
+            voice=request.voice,
+            temperature=request.temperature,
+            top_p=request.top_p,
+            repetition_penalty=request.repetition_penalty
+        ),
+        media_type="audio/wav",
+        headers={"Content-Disposition": f"inline; filename={filename}"}
+    )
 
 @app.get(
     "/v1/voices",
@@ -357,6 +423,7 @@ async def root():
         "description": "OpenAI-compatible API for Orpheus TTS",
         "endpoints": [
             {"path": "/v1/audio/speech", "method": "POST", "description": "Generate speech from text"},
+            {"path": "/v1/audio/speech_stream", "method": "POST", "description": "Stream speech from text as it's generated"},
             {"path": "/v1/voices", "method": "GET", "description": "List available voices"},
             {"path": "/v1/capabilities", "method": "GET", "description": "Get system capabilities"}
         ]

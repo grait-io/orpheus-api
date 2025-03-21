@@ -4,6 +4,7 @@ import requests
 import json
 import time
 import wave
+import io
 import numpy as np
 import sounddevice as sd
 import argparse
@@ -216,6 +217,46 @@ def stream_audio(audio_buffer):
     sd.play(audio_float, SAMPLE_RATE)
     sd.wait()
 
+async def generate_speech_streaming(prompt, voice=DEFAULT_VOICE, temperature=TEMPERATURE, 
+                     top_p=TOP_P, max_tokens=MAX_TOKENS, repetition_penalty=REPETITION_PENALTY):
+    """Generate speech from text and stream audio chunks as they are generated."""
+    # Create a WAV header for streaming
+    wav_header = create_wav_header()
+    
+    # Yield the WAV header first
+    yield wav_header
+    
+    # Convert the synchronous token generator into an async generator
+    async def async_token_gen():
+        for token in generate_tokens_from_api(
+            prompt=prompt, 
+            voice=voice,
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            repetition_penalty=repetition_penalty
+        ):
+            yield token
+    
+    # Stream audio chunks as they are generated
+    async for audio_chunk in tokens_decoder(async_token_gen()):
+        if audio_chunk is not None:
+            yield audio_chunk
+
+def create_wav_header():
+    """Create a WAV header for streaming."""
+    buffer = io.BytesIO()
+    with wave.open(buffer, 'wb') as wav_file:
+        wav_file.setnchannels(1)  # Mono
+        wav_file.setsampwidth(2)  # 16-bit
+        wav_file.setframerate(SAMPLE_RATE)
+        # Write an empty audio frame to generate the header
+        wav_file.writeframes(b'')
+    
+    # Get the header (everything before the data chunk)
+    header = buffer.getvalue()
+    return header
+
 def generate_speech_from_api(prompt, voice=DEFAULT_VOICE, output_file=None, temperature=TEMPERATURE, 
                      top_p=TOP_P, max_tokens=MAX_TOKENS, repetition_penalty=REPETITION_PENALTY):
     """Generate speech from text using Orpheus model via LM Studio API."""
@@ -296,4 +337,4 @@ def main():
     print(f"Audio saved to {output_file}")
 
 if __name__ == "__main__":
-    main() 
+    main()

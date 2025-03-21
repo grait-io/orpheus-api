@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orpheus TTS Streaming Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .audio-container {
+            margin-top: 20px;
+        }
+        #status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Orpheus TTS Streaming Test</h1>
+    
+    <div class="form-group">
+        <label for="text-input">Text to convert to speech:</label>
+        <textarea id="text-input">Julia, are you enjoing it? <sniffle></textarea>
+    </div>
+    
+    <div class="form-group">
+        <label for="voice-select">Voice:</label>
+        <select id="voice-select">
+            <option value="tara" selected>Tara (recommended)</option>
+            <option value="leah">Leah</option>
+            <option value="jess">Jess</option>
+            <option value="leo">Leo</option>
+            <option value="dan">Dan</option>
+            <option value="mia">Mia</option>
+            <option value="zac">Zac</option>
+            <option value="zoe">Zoe</option>
+        </select>
+    </div>
+    
+    <button id="generate-btn">Generate & Stream Speech</button>
+    
+    <div class="audio-container">
+        <audio id="audio-player" controls></audio>
+        <div id="status"></div>
+    </div>
+    
+    <script>
+        document.getElementById('generate-btn').addEventListener('click', async () => {
+            const textInput = document.getElementById('text-input').value;
+            const voiceSelect = document.getElementById('voice-select').value;
+            const audioPlayer = document.getElementById('audio-player');
+            const statusDiv = document.getElementById('status');
+            
+            if (!textInput) {
+                statusDiv.textContent = 'Please enter some text.';
+                statusDiv.className = 'error';
+                return;
+            }
+            
+            // Update status
+            statusDiv.textContent = 'Generating speech...';
+            statusDiv.className = 'loading';
+            
+            try {
+                // Make request to the streaming endpoint
+                const response = await fetch('http://127.0.0.1:8000/v1/audio/speech_stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        input: textInput,
+                        voice: voiceSelect
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Get the audio data as a blob
+                const audioBlob = await response.blob();
+                
+                // Create a URL for the blob
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Set the audio source and play
+                audioPlayer.src = audioUrl;
+                audioPlayer.play();
+                
+                // Update status
+                statusDiv.textContent = 'Speech generated successfully!';
+                statusDiv.className = 'success';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.className = 'error';
+            }
+        });
+    </script>
+</body>
+</html>
