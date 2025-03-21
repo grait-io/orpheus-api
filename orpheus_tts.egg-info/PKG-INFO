@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: orpheus-tts
+Version: 0.1.0
+Summary: A Text-to-Speech project with Orpheus.
+Author-email: "grait.io Mariusz Kreft" <1@grait.io>
+License-Expression: Apache-2.0
+License-File: LICENSE
+Requires-Dist: torch>=2.0.0
+Requires-Dist: numpy>=1.20.0
+Requires-Dist: sounddevice>=0.4.4
+Requires-Dist: requests>=2.25.0
+Requires-Dist: wave>=0.0.2
+Requires-Dist: snac>=1.2.1
+Requires-Dist: fastapi>=0.104.0
+Requires-Dist: uvicorn[standard]>=0.12.0
+Dynamic: license-file

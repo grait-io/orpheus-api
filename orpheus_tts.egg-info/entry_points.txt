@@ -1,0 +1,2 @@
+[console_scripts]
+orpheus-tts = gguf_orpheus:main

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orpheus-tts"
+version = "0.1.0"
+description = "A Text-to-Speech project with Orpheus."
+authors = [
+  { name = "grait.io Mariusz Kreft", email = "1@grait.io" }
+]
+license = "Apache-2.0"
+
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.20.0",
+    "sounddevice>=0.4.4",
+    "requests>=2.25.0",
+    "wave>=0.0.2",
+    "snac>=1.2.1",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.12.0",
+]
+
+[tool.setuptools]
+py-modules = ["gguf_orpheus", "decoder", "openai_api"]
+
+[project.scripts]
+orpheus-tts = "gguf_orpheus:main"
